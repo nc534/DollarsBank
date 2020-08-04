@@ -5,7 +5,6 @@ public class ConsoleColor {
     public static final String RESET = "\033[0m";  // Text Reset
 
     // Regular Colors
-    public static final String BLACK = "\033[0;30m";   // BLACK
     public static final String RED = "\033[0;91m";     // RED
     public static final String GREEN = "\033[0;92m";   // GREEN
     public static final String YELLOW = "\033[0;33m";  // YELLOW

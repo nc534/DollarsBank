@@ -24,6 +24,8 @@ public class Customer {
         return customer_id;
     }
 
+    public void setCustomerId(int customer_id) {this.customer_id = customer_id; }
+
     public String getUserId() {
         return user_id;
     }
@@ -62,5 +64,11 @@ public class Customer {
 
     public void setAddress(String address) {
         this.address = address;
+    }
+
+    @Override
+    public String toString() {
+        return "User Id: " + user_id + "\nPassword: " + password + "\nName: " + name + "\nPhone: " + phone + "\nAddress: "
+                + address;
     }
 }

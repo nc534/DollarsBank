@@ -7,8 +7,9 @@ import com.dollarsbank.model.Transaction;
 import java.util.List;
 
 public interface DollarsBankDao {
-    List<Customer> getCustomerInfo();
-    List<Transaction> getTransactions();
-    void addTransaction(Transaction transaction);
-    void updateAccount(Account account);
+    Customer getCustomerInfo(String userId);
+    Transaction getTransactions(String userId);
+    void addTransaction(String userId);
+    void addAccount(String userId, String account, double deposit);
+    Account getAccountInfo(int customerId);
 }
