@@ -13,7 +13,7 @@ public class DollarsBankApplication {
     public static void main(String[] args) throws ClassNotFoundException {
 
         int choice;
-        boolean validChoice = false;
+        boolean exit = false;
 
         do {
 
@@ -54,28 +54,28 @@ public class DollarsBankApplication {
                     break;
                 case 2:
                     boolean customerexists;
-                    customerexists = DBDao.findCustomer(customer);
 
                     do {
+                    customerexists = DBDao.findCustomer(customer);
+
                         if (customerexists) {
                             DollarsBankController.userMain(customer);
                         } else {
                             System.out.println(ConsoleColor.RED + "Invalid Credentials. Try Again!" + ConsoleColor.RESET);
-                            customerexists = DBDao.findCustomer(customer);
                         }
                     } while (!customerexists);
 
                     break;
                 case 3:
                     System.out.println("Goodbye!");
-                    validChoice = true;
+                    exit = true;
                     System.exit(0);
                     break;
                 default:
                     System.out.println("Invalid choice. Please input either 1, 2, or 3.");
                     break;
             }
-        }while(!validChoice);
+        }while(!exit);
 
     }
 }

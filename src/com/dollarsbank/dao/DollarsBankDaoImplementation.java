@@ -1,5 +1,6 @@
 package com.dollarsbank.dao;
 
+import com.dollarsbank.controller.DollarsBankController;
 import com.dollarsbank.model.Account;
 import com.dollarsbank.model.Customer;
 import com.dollarsbank.model.Transaction;
@@ -76,6 +77,7 @@ public class DollarsBankDaoImplementation implements DollarsBankDao{
             //only insert new customer if customer does not already exists
             if(!customerexists){
                 result = preparedStatement.executeUpdate();
+                DollarsBankController.createAccount(userId);
             }
 
             //System.out.println(result);
@@ -162,6 +164,102 @@ public class DollarsBankDaoImplementation implements DollarsBankDao{
 
     }
 
+    public boolean accountExists(String userId, String account_type) {
+        boolean accountExists = false;
+
+        String account_exists_sql = "SELECT * FROM account a INNER JOIN customer c ON c.customer_id = a.customer_id WHERE " +
+                "userid = ? AND account_type = ?";
+
+        try {
+
+            Connection connection = DollarsBankConnection.getConnection();
+
+            PreparedStatement preparedStatement = connection.prepareStatement(account_exists_sql);
+
+            preparedStatement.setString(1, userId);
+            preparedStatement.setString(2, account_type);
+
+            //System.out.println(preparedStatement);
+
+            ResultSet rs = preparedStatement.executeQuery();
+
+            accountExists = rs.next();
+
+        }catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return  accountExists;
+    }
+
+    public boolean updateBalance(double transaction_amount, int account_id, int transaction_id) {
+
+        boolean updated = false;
+
+        String update_balance_sql = "UPDATE account a INNER JOIN transaction t " +
+                "ON a.account_id = t.account_id " +
+                "SET account_balance = " +
+                "case " +
+                "   when transaction_type = 'deposit' then account_balance + " + transaction_amount +
+                "   when transaction_type = 'withdraw' then account_balance - " + transaction_amount +
+                "   else account_balance " +
+                "end " +
+                "where a.account_id = ? AND transaction_id = ?";
+
+        try {
+
+            Connection connection = DollarsBankConnection.getConnection();
+
+            PreparedStatement preparedStatement = connection.prepareStatement(update_balance_sql);
+
+            preparedStatement.setInt(1, account_id);
+            preparedStatement.setInt(2, transaction_id);
+
+            //will return false since it is an update
+            updated = preparedStatement.execute();
+
+        }catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return updated;
+    }
+
+    public double getBalance(int customer_id, int account_id) {
+        double balance = 0;
+
+        String get_balance_sql = "SELECT * FROM account a INNER JOIN customer c " +
+                "ON c.customer_id = a.customer_id " +
+                "WHERE a.customer_id = ? AND account_id = ?";
+
+        try {
+
+            Connection connection = DollarsBankConnection.getConnection();
+
+            PreparedStatement preparedStatement = connection.prepareStatement(get_balance_sql);
+
+            preparedStatement.setInt(1, customer_id);
+            preparedStatement.setInt(2, account_id);
+
+            ResultSet rs = preparedStatement.executeQuery();
+            rs.next();
+
+            Account currentAccount = new Account();
+
+            currentAccount.setAccountId(rs.getInt("account_id"));
+            currentAccount.setAccountType(rs.getString("account_type"));
+            currentAccount.setAccountCreation(rs.getTimestamp("account_creation"));
+            currentAccount.setInitialDeposit(rs.getDouble("initial_deposit"));
+            currentAccount.setAccountBalance(rs.getDouble("account_balance"));
+
+            balance = currentAccount.getAccountBalance();
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return balance;
+    }
+
     @Override
     public Customer getCustomerInfo(String userId) {
         String customer_info_sql = "SELECT * FROM customer WHERE userid = ?";
@@ -231,36 +329,59 @@ public class DollarsBankDaoImplementation implements DollarsBankDao{
     }
 
     @Override
-    public void addTransaction(String userId) {
+    public void addTransaction(String userId, String transaction_type, double transaction_amount) {
 
         int account_id = getAccountInfo(getCustomerInfo(userId).getCustomerId()).getAccountId();
         boolean transactionCreated;
+        PreparedStatement preparedStatement = null;
+        String add_transaction_sql;
 
-        String add_transaction_sql = "INSERT into transaction(account_id, transaction_date, transaction_type, transaction_amount)" +
-                "values " +
-                "(?,  " +
-                "(select account_creation from account where account_id = ?), " +
-                "'initial_deposit', " +
-                "(select initial_deposit from account where account_id = ?))";
+        if(transaction_type.equals("initial_deposit")) {
 
-        try{
+            add_transaction_sql = "INSERT into transaction(account_id, transaction_date, transaction_type, transaction_amount)" +
+                    "values " +
+                    "(" + account_id + ",  " +
+                    "(select account_creation from account where account_id = " + account_id + "), ?, ?";
 
-            Connection connection = DollarsBankConnection.getConnection();
+            try {
 
-            PreparedStatement preparedStatement = connection.prepareStatement(add_transaction_sql);
-            preparedStatement.setInt(1, account_id);
-            preparedStatement.setInt(2, account_id);
-            preparedStatement.setInt(3, account_id);
-            transactionCreated = preparedStatement.execute();
+                Connection connection = DollarsBankConnection.getConnection();
 
-            if(transactionCreated){
-                getTransactions(getCustomerInfo(userId).getUserId());
+                preparedStatement = connection.prepareStatement(add_transaction_sql);
+                preparedStatement.setString(1, transaction_type);
+                preparedStatement.setDouble(2, transaction_amount);
+
+            } catch (SQLException e) {
+                e.printStackTrace();
             }
+        }else{
+            add_transaction_sql = "insert into transaction(account_id, transaction_date, transaction_type, transaction_amount) " +
+            "values (?,  now(), ?, ?)";
 
-        } catch (SQLException e) {
-            e.printStackTrace();
+            try{
+
+                Connection connection = DollarsBankConnection.getConnection();
+
+                preparedStatement = connection.prepareStatement(add_transaction_sql);
+                preparedStatement.setInt(1, account_id);
+                preparedStatement.setString(2, transaction_type);
+                preparedStatement.setDouble(3, transaction_amount);
+
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
         }
 
+        try {
+            assert preparedStatement != null;
+            transactionCreated = preparedStatement.execute();
+
+            if (transactionCreated) {
+                getTransactions(getCustomerInfo(userId).getUserId());
+            }
+        }catch (SQLException e){
+            e.printStackTrace();
+        }
     }
 
     @Override
