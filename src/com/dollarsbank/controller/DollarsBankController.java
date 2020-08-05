@@ -6,6 +6,7 @@ import com.dollarsbank.utility.ConsoleColor;
 import com.dollarsbank.dao.DollarsBankDaoImplementation;
 
 import java.util.InputMismatchException;
+import java.util.List;
 import java.util.Scanner;
 
 public class DollarsBankController {
@@ -18,10 +19,10 @@ public class DollarsBankController {
 
         String user_id = customer.getUserId();
         int customer_id = DBDao.getCustomerInfo(user_id).getCustomerId();
-        int account_id = DBDao.getAccountInfo(customer_id).getAccountId();
+        int account_id = DBDao.getAccountInfo(customer_id, account).getAccountId();
+        List<Transaction> transaction = DBDao.getTransactions(user_id);
         int choice;
         boolean loggedOut = false;
-        int accountChoice;
         String transaction_type;
         double transaction_amount;
 
@@ -63,22 +64,21 @@ public class DollarsBankController {
                         transaction_type = "withdraw";
                     }
 
-                    System.out.println("1. Savings");
-                    System.out.println("2. Checking");
-
-                    accountChoice = input.nextInt();
-                    account = account(accountChoice);
+                    while(account == null) {
+                        account = account();
+                    }
 
                     if(!DBDao.accountExists(user_id, account)) {
                         System.out.println("You do not have a " + account + " account.");
+                        account = null;
                     } else {
 
                         System.out.println("How much do you want to " + transaction_type + " from your " + account + " account?");
                         transaction_amount = input.nextDouble();
 
-                        DBDao.addTransaction(user_id, transaction_type, transaction_amount);
+                        DBDao.addTransaction(user_id, account, transaction_type, 0, 0, transaction_amount);
 
-                        int transaction_id = DBDao.getTransactions(user_id).getTransactionId();
+                        int transaction_id = DBDao.getTransactions(user_id).get(transaction.size()-1).getTransactionId();
 
                         boolean updated = DBDao.updateBalance(transaction_amount, account_id, transaction_id);
 
@@ -99,41 +99,61 @@ public class DollarsBankController {
                     promptEnterKey();
 
                     break;
-                case 3:
-                    System.out.println("Which account do you want to transfer funds to?");
-                    System.out.println("1. Savings");
-                    System.out.println("2. Checking");
-                    System.out.println("3. Another Customer");
-
-                    accountChoice = input.nextInt();
-                    account = account(accountChoice); //maybe remove options. another customer not accounted
+                case 3: //needs fixing
+//                    while(account == null) {
+//                        System.out.println("Which account do you want to transfer funds to?");
+//                        System.out.println("1. Savings");
+//                        System.out.println("2. Checking");
+//                        System.out.println("3. Another Customer");
+//
+//                        accountChoice = input.nextInt();
+//                        account = account(accountChoice); //maybe remove options. another customer not accounted
+//                        if(accountChoice == 1 || accountChoice == 2){
+//
+//                            transaction_type = "transfer";
+//
+//                            System.out.println("How much do you want to " + transaction_type + " to your " + account + " account?");
+//                            transaction_amount = input.nextDouble();
+//                            //wrong
+//                            DBDao.addTransaction(user_id, account, transaction_type, account_id, 0, transaction_amount);
+//
+//                            int transaction_id = DBDao.getTransactions(user_id).get(transaction.size()-1).getTransactionId();
+//
+//                            boolean updated = DBDao.updateBalance(transaction_amount, account_id, transaction_id);
+//                        }
+//                    }
+                    promptEnterKey();
                     break;
                 case 4:
-                    System.out.println("Which account do you want to check the balance for?");
-                    System.out.println("1. Savings");
-                    System.out.println("2. Checking");
+                    while(account == null) {
 
-                    accountChoice = input.nextInt();
-                    account = account(accountChoice);
+                    System.out.println("Which account do you want to check the balance for?");
+
+                    account = account();
+
+                    }
 
                     if(!DBDao.accountExists(user_id, account)) {
                         System.out.println("You do not have a " + account + " account.");
-                        promptEnterKey();
+                        account = null;
                     }else{
                         double balance = DBDao.getBalance(customer_id, account_id);
                         System.out.println(account + " account");
                         System.out.println("Balance: $" + balance);
-                        promptEnterKey();
                     }
+                    promptEnterKey();
 
                     break;
                 case 5:
                     System.out.println("These are your 5 recent transactions:");
-                    Transaction transaction = DBDao.getTransactions(user_id);
-                    if(transaction.getTransactionId() != 0) {
-                        System.out.println(transaction.getTransactionType() + " of $" + transaction.getTransactionAmount() + " to account id " + account_id + " on " + transaction.getTransactionDate());
+                    List<Transaction> currentTransactions = DBDao.getTransactions(user_id);
+                    if(currentTransactions.isEmpty()){
+                        System.out.println("No Transactions Were Made!");
+                    }else {
+                        for (Transaction value : currentTransactions) {
+                            System.out.println(value.getTransactionType() + " of $" + value.getTransactionAmount() + " to account id " + account_id + " on " + value.getTransactionDate());
+                        }
                     }
-
                     promptEnterKey();
 
                     break;
@@ -157,25 +177,27 @@ public class DollarsBankController {
         }while(!loggedOut);
     }
 
-    public static String account(int accountChoice){
+    public static String account(){
+
+        System.out.println("1. Savings");
+        System.out.println("2. Checking");
+
+        int accountChoice = input.nextInt();
 
         if(accountChoice == 1){
             account = "savings";
         }else if (accountChoice == 2){
             account = "checking";
         }else{
-            System.out.println("Not a valid option");
+            System.out.println("Not a valid option\n");
         }
         return account;
     }
 
     public static void createAccount(String user_id){
         System.out.println("What kind of account do you want to create?");
-        System.out.println("1. Savings");
-        System.out.println("2. Checking");
 
-        int accountChoice = input.nextInt();
-        account = account(accountChoice);
+        account = account();
 
         if(DBDao.accountExists(user_id, account)) {
             System.out.println("You already have a " + account + " account.");
@@ -185,7 +207,7 @@ public class DollarsBankController {
             System.out.println("How much do you want to deposit for the initial deposit?");
             double deposit = input.nextDouble();
             DBDao.addAccount(user_id, account, deposit);
-            DBDao.addTransaction(user_id, "initial_deposit", deposit);
+            DBDao.addTransaction(user_id, account, "initial_deposit", 0, 0, deposit);
         }
     }
 

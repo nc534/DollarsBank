@@ -8,6 +8,7 @@ import com.dollarsbank.utility.ConsoleColor;
 import com.dollarsbank.utility.DollarsBankConnection;
 
 import java.sql.*;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
@@ -15,6 +16,8 @@ public class DollarsBankDaoImplementation implements DollarsBankDao{
 
     Customer customer = new Customer();
     Scanner input = new Scanner(System.in);
+    Connection connection = DollarsBankConnection.getConnection();
+    PreparedStatement preparedStatement;
 
     //method for registering new customers
     public int registerCustomer(Customer customer) throws ClassNotFoundException {
@@ -36,8 +39,6 @@ public class DollarsBankDaoImplementation implements DollarsBankDao{
         boolean isValid = false;
 
         try {
-
-            Connection connection = DollarsBankConnection.getConnection();
 
             PreparedStatement preparedStatement = connection.prepareStatement(insert_customer_sql);
 
@@ -66,9 +67,13 @@ public class DollarsBankDaoImplementation implements DollarsBankDao{
                     customer.setUserId(userId);
             System.out.println("Password: (Minimum of 8 Characters With At Least 1 Lowercase, 1 Uppercase, & 1 Special)");
                 String pw = input.nextLine();
-                    preparedStatement.setString(5, pw);
-                    customer.setPassword(pw);
-
+                String pwRegEx = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*]).{8,}$";
+                while(!pw.matches(pwRegEx)){
+                    System.out.println("Password needs to be at least 8 characters with 1 lowercase, 1 uppercase, and 1 special character");
+                    pw = input.nextLine();
+                }
+                preparedStatement.setString(5, pw);
+                customer.setPassword(pw);
             //System.out.println(preparedStatement);
 
             //check if customer already exists
@@ -106,9 +111,7 @@ public class DollarsBankDaoImplementation implements DollarsBankDao{
 
         try {
 
-            Connection connection = DollarsBankConnection.getConnection();
-
-            PreparedStatement preparedStatement = connection.prepareStatement(find_customer_sql);
+            preparedStatement = connection.prepareStatement(find_customer_sql);
 
             System.out.println("User Id:");
                 String userId = input.nextLine();
@@ -143,9 +146,7 @@ public class DollarsBankDaoImplementation implements DollarsBankDao{
 
         try {
 
-            Connection connection = DollarsBankConnection.getConnection();
-
-            PreparedStatement preparedStatement = connection.prepareStatement(find_customer_exists_sql);
+            preparedStatement = connection.prepareStatement(find_customer_exists_sql);
 
             preparedStatement.setString(1, userId);
             preparedStatement.setString(2, phone);
@@ -172,9 +173,7 @@ public class DollarsBankDaoImplementation implements DollarsBankDao{
 
         try {
 
-            Connection connection = DollarsBankConnection.getConnection();
-
-            PreparedStatement preparedStatement = connection.prepareStatement(account_exists_sql);
+            preparedStatement = connection.prepareStatement(account_exists_sql);
 
             preparedStatement.setString(1, userId);
             preparedStatement.setString(2, account_type);
@@ -208,9 +207,7 @@ public class DollarsBankDaoImplementation implements DollarsBankDao{
 
         try {
 
-            Connection connection = DollarsBankConnection.getConnection();
-
-            PreparedStatement preparedStatement = connection.prepareStatement(update_balance_sql);
+            preparedStatement = connection.prepareStatement(update_balance_sql);
 
             preparedStatement.setInt(1, account_id);
             preparedStatement.setInt(2, transaction_id);
@@ -233,9 +230,7 @@ public class DollarsBankDaoImplementation implements DollarsBankDao{
 
         try {
 
-            Connection connection = DollarsBankConnection.getConnection();
-
-            PreparedStatement preparedStatement = connection.prepareStatement(get_balance_sql);
+            preparedStatement = connection.prepareStatement(get_balance_sql);
 
             preparedStatement.setInt(1, customer_id);
             preparedStatement.setInt(2, account_id);
@@ -265,9 +260,8 @@ public class DollarsBankDaoImplementation implements DollarsBankDao{
         String customer_info_sql = "SELECT * FROM customer WHERE userid = ?";
 
         try{
-            Connection connection = DollarsBankConnection.getConnection();
 
-            PreparedStatement preparedStatement = connection.prepareStatement(customer_info_sql);
+            preparedStatement = connection.prepareStatement(customer_info_sql);
             preparedStatement.setString(1, userId);
             ResultSet rs = preparedStatement.executeQuery();
 
@@ -287,11 +281,11 @@ public class DollarsBankDaoImplementation implements DollarsBankDao{
     }
 
     @Override
-    public Transaction getTransactions(String userId) {
+    public List<Transaction> getTransactions(String userId) {
 
         int customer_id = getCustomerInfo(userId).getCustomerId();
 
-        String get_transactions_sql = "SELECT c.customer_id, transaction_id, a.account_id, account_type, transaction_date, transaction_type," +
+        String get_transactions_sql = "SELECT c.customer_id, transaction_id, a.account_id, account_type, transaction_date, transfer_from, transfer_to, transaction_type," +
                 "transfer_from, transfer_to," +
                 "transaction_amount FROM transaction t " +
                 "INNER JOIN account a " +
@@ -302,50 +296,47 @@ public class DollarsBankDaoImplementation implements DollarsBankDao{
                 "ORDER BY transaction_date DESC " +
                 "LIMIT 5;";
 
-        Transaction transaction = new Transaction();
+        List<Transaction> transactionList = new ArrayList<>();
 
         try{
 
-            Connection connection = DollarsBankConnection.getConnection();
-
-            PreparedStatement preparedStatement = connection.prepareStatement(get_transactions_sql);
+            preparedStatement = connection.prepareStatement(get_transactions_sql);
             preparedStatement.setInt(1, customer_id);
 
             ResultSet rs = preparedStatement.executeQuery();
 
-            rs.next();
+            while(rs.next()) {
+                Transaction transaction = new Transaction();
 
-            transaction.setTransactionId(rs.getInt("transaction_id"));
-            transaction.setTransactionDate(rs.getTimestamp("transaction_date"));
-            transaction.setTransactionType(rs.getString("transaction_type"));
-            transaction.setTransferFrom(rs.getInt("transfer_from"));
-            transaction.setTransferTo(rs.getInt("transfer_to"));
-            transaction.setTransactionAmount(rs.getDouble("transaction_amount"));
+                transaction.setTransactionId(rs.getInt("transaction_id"));
+                transaction.setTransactionDate(rs.getTimestamp("transaction_date"));
+                transaction.setTransactionType(rs.getString("transaction_type"));
+                transaction.setTransferFrom(rs.getInt("transfer_from"));
+                transaction.setTransferTo(rs.getInt("transfer_to"));
+                transaction.setTransactionAmount(rs.getDouble("transaction_amount"));
 
+                transactionList.add(transaction);
+            }
         } catch (SQLException e) {
-            System.out.println("No Transactions Were Made!");
+            e.printStackTrace();
         }
-        return transaction;
+        return transactionList;
     }
 
     @Override
-    public void addTransaction(String userId, String transaction_type, double transaction_amount) {
+    public void addTransaction(String userId, String account_type, String transaction_type, int transfer_from, int transfer_to, double transaction_amount) {
 
-        int account_id = getAccountInfo(getCustomerInfo(userId).getCustomerId()).getAccountId();
+        int account_id = getAccountInfo(getCustomerInfo(userId).getCustomerId(), account_type).getAccountId();
         boolean transactionCreated;
-        PreparedStatement preparedStatement = null;
         String add_transaction_sql;
 
         if(transaction_type.equals("initial_deposit")) {
 
-            add_transaction_sql = "INSERT into transaction(account_id, transaction_date, transaction_type, transaction_amount)" +
-                    "values " +
-                    "(" + account_id + ",  " +
-                    "(select account_creation from account where account_id = " + account_id + "), ?, ?";
+            add_transaction_sql = "INSERT into transaction(account_id, transaction_date, transaction_type, transaction_amount) " +
+                    "values (" + account_id + ",  " +
+                    "(select account_creation from account where account_id = " + account_id + "), ?, ?)";
 
             try {
-
-                Connection connection = DollarsBankConnection.getConnection();
 
                 preparedStatement = connection.prepareStatement(add_transaction_sql);
                 preparedStatement.setString(1, transaction_type);
@@ -355,12 +346,10 @@ public class DollarsBankDaoImplementation implements DollarsBankDao{
                 e.printStackTrace();
             }
         }else{
-            add_transaction_sql = "insert into transaction(account_id, transaction_date, transaction_type, transaction_amount) " +
-            "values (?,  now(), ?, ?)";
+            add_transaction_sql = "insert into transaction(account_id, transaction_date, transaction_type, transfer_from, transfer_to, transaction_amount) " +
+            "values (?,  now(), ?," + transfer_from + "," + transfer_to + ", ?)";
 
             try{
-
-                Connection connection = DollarsBankConnection.getConnection();
 
                 preparedStatement = connection.prepareStatement(add_transaction_sql);
                 preparedStatement.setInt(1, account_id);
@@ -385,6 +374,62 @@ public class DollarsBankDaoImplementation implements DollarsBankDao{
     }
 
     @Override
+    public void addTransfer(String userId, int account_id, int transfer_to, double transaction_amount){
+
+//        boolean transferSuccess;
+//
+//        //transfer to
+//        String transfer_to_sql = "INSERT into transaction(account_id, transaction_date, transaction_type, transfer_from, transfer_to, transaction_amount) " +
+//                "VALUES (?,  now(), 'transfer', account_id, ?, ?)";
+//
+//        try{
+//
+//            preparedStatement = connection.prepareStatement(transfer_to_sql);
+//            preparedStatement.setInt(1, account_id);
+//            preparedStatement.setInt(2, transfer_to);
+//            preparedStatement.setDouble(3, transaction_amount);
+//
+//            try {
+//                assert preparedStatement != null;
+//                transferSuccess = preparedStatement.execute();
+//
+//                if (transferSuccess) {
+//                    getTransactions(getCustomerInfo(userId).getUserId());
+//                }
+//            }catch (SQLException e){
+//                e.printStackTrace();
+//            }
+//
+//        } catch (SQLException e) {
+//            e.printStackTrace();
+//        }
+//
+//        //transfer from
+//        String transfer_from_sql = "INSERT into transaction(account_id, transaction_date, transaction_type, transfer_from, transfer_to, transaction_amount) " +
+//                "VALUES (" + transfer_to + ",  now(), 'transfer', " + account_id + ", " + account_id + ", 'transaction_amount')";
+//
+//        try{
+//
+//            preparedStatement = connection.prepareStatement(transfer_from_sql);
+//
+//            try {
+//                assert preparedStatement != null;
+//                transferSuccess = preparedStatement.execute();
+//
+//                if (transferSuccess) {
+//                    getTransactions(getCustomerInfo(userId).getUserId()); //not right
+//                }
+//            }catch (SQLException e){
+//                e.printStackTrace();
+//            }
+//
+//        } catch (SQLException e) {
+//            e.printStackTrace();
+//        }
+
+    }
+
+    @Override
     public void addAccount(String userId, String account, double deposit) {
 
         int customer_id = getCustomerInfo(userId).getCustomerId();
@@ -394,16 +439,15 @@ public class DollarsBankDaoImplementation implements DollarsBankDao{
                 "values (?, ?, now(), ?, initial_deposit)";
 
         try{
-            Connection connection = DollarsBankConnection.getConnection();
 
-            PreparedStatement preparedStatement = connection.prepareStatement(add_account_sql);
+            preparedStatement = connection.prepareStatement(add_account_sql);
             preparedStatement.setInt(1, customer_id);
             preparedStatement.setString(2, account);
             preparedStatement.setDouble(3, deposit);
             accountCreated = preparedStatement.execute();
 
             if(accountCreated){
-                getAccountInfo(customer_id);
+                getAccountInfo(customer_id, account);
             }
 
         } catch (SQLException e) {
@@ -412,17 +456,17 @@ public class DollarsBankDaoImplementation implements DollarsBankDao{
     }
 
     @Override
-    public Account getAccountInfo(int customer_id){
+    public Account getAccountInfo(int customer_id, String account){
 
-        String find_account_sql = "SELECT * from account where customer_id = ?";
+        String find_account_sql = "SELECT * from account where customer_id = ? AND account_type = ?";
 
         Account currentAccount = new Account();
 
         try{
-            Connection connection = DollarsBankConnection.getConnection();
 
-            PreparedStatement preparedStatement = connection.prepareStatement(find_account_sql);
+            preparedStatement = connection.prepareStatement(find_account_sql);
             preparedStatement.setInt(1, customer_id);
+            preparedStatement.setString(2, account);
             ResultSet rs = preparedStatement.executeQuery();
 
             rs.next();
