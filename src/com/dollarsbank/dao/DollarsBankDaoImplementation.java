@@ -4,7 +4,6 @@ import com.dollarsbank.controller.DollarsBankController;
 import com.dollarsbank.model.Account;
 import com.dollarsbank.model.Customer;
 import com.dollarsbank.model.Transaction;
-import com.dollarsbank.utility.ConsoleColor;
 import com.dollarsbank.utility.DollarsBankConnection;
 
 import java.sql.*;
@@ -21,10 +20,6 @@ public class DollarsBankDaoImplementation implements DollarsBankDao{
 
     //method for registering new customers
     public int registerCustomer(Customer customer) throws ClassNotFoundException {
-
-        System.out.println(ConsoleColor.BLUE + "+-------------------------------+");
-        System.out.println("| Enter Details For New Account |");
-        System.out.println("+-------------------------------+" + ConsoleColor.RESET);
 
         String insert_customer_sql = "INSERT INTO customer (name, address, phone, userid, password)" +
                 "VALUES (?, ?, ?, ?, ?)";
@@ -97,10 +92,6 @@ public class DollarsBankDaoImplementation implements DollarsBankDao{
 
     //method for logging in and checking that the customer userId and password are correct
     public boolean findCustomer(Customer customer) throws ClassNotFoundException {
-
-        System.out.println(ConsoleColor.BLUE + "+---------------------+");
-        System.out.println("| Enter Login Details |");
-        System.out.println("+---------------------+" + ConsoleColor.RESET);
 
         boolean customerexists = false;
 
@@ -221,6 +212,52 @@ public class DollarsBankDaoImplementation implements DollarsBankDao{
         return updated;
     }
 
+    public boolean updateBalanceFrom(double transaction_amount, int account_id, int transaction_id){
+        boolean updated = false;
+
+        String update_balance_from_sql = "UPDATE account a INNER JOIN transaction t " +
+                "ON a.account_id = t.transfer_from " +
+                "SET account_balance = account_balance - " + transaction_amount +
+                " WHERE a.account_id = ? AND transaction_id = ?";
+
+        try {
+
+            preparedStatement = connection.prepareStatement(update_balance_from_sql);
+
+            preparedStatement.setInt(1, account_id);
+            preparedStatement.setInt(2, transaction_id);
+
+            System.out.println(preparedStatement);
+            updated = preparedStatement.execute();
+
+        }catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return updated;
+    }
+
+    public boolean updateBalanceTo(double transaction_amount, int account_id){
+        boolean updated = false;
+
+        String update_balance_to_sql = "UPDATE account a " +
+                "SET account_balance = account_balance + " + transaction_amount +
+                " WHERE account_id = ?";
+
+        try {
+
+            preparedStatement = connection.prepareStatement(update_balance_to_sql);
+
+            preparedStatement.setInt(1, account_id);
+
+            System.out.println(preparedStatement);
+            updated = preparedStatement.execute();
+
+        }catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return updated;
+    }
+
     public double getBalance(int customer_id, int account_id) {
         double balance = 0;
 
@@ -309,6 +346,7 @@ public class DollarsBankDaoImplementation implements DollarsBankDao{
                 Transaction transaction = new Transaction();
 
                 transaction.setTransactionId(rs.getInt("transaction_id"));
+                transaction.setAccountId(rs.getInt("account_id"));
                 transaction.setTransactionDate(rs.getTimestamp("transaction_date"));
                 transaction.setTransactionType(rs.getString("transaction_type"));
                 transaction.setTransferFrom(rs.getInt("transfer_from"));

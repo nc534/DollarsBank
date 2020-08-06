@@ -4,6 +4,7 @@ import java.sql.Timestamp;
 
 public class Transaction {
     private int transaction_id;
+    private int account_id;
     private Timestamp transaction_date;
     private String transaction_type;
     private int transfer_from;
@@ -14,7 +15,8 @@ public class Transaction {
 
     }
 
-    public Transaction(Timestamp transaction_date, String transaction_type, int transfer_from, int transfer_to, double transaction_amount) {
+    public Transaction(int account_id, Timestamp transaction_date, String transaction_type, int transfer_from, int transfer_to, double transaction_amount) {
+        this.account_id = account_id;
         this.transaction_date = transaction_date;
         this.transaction_type = transaction_type;
         this.transfer_from = transfer_from;
@@ -26,6 +28,14 @@ public class Transaction {
 
     public int getTransactionId() {
         return transaction_id;
+    }
+
+    public int getAccountId() {
+        return account_id;
+    }
+
+    public void setAccountId(int account_id) {
+        this.account_id = account_id;
     }
 
     public Timestamp getTransactionDate() {
